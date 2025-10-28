@@ -330,87 +330,98 @@ class Flowers102(datasets.Flowers102):
 
 class StanfordCars(datasets.StanfordCars):
     def __init__(self, root, split='train', transform=None, target_transform=None, download=False):
-        try:
-            import scipy.io as sio
-        except ImportError:
-            raise RuntimeError("Scipy is not found. This dataset needs to have scipy installed: pip install scipy")
-
-        super(StanfordCars, self).__init__(root, transform=transform, target_transform=target_transform, download=download)
-
-        self._split = verify_str_arg(split, "split", ("train", "test"))
-        self._base_folder = pathlib.Path(root) / "stanford_cars"
-        devkit = self._base_folder / "devkit"
-
-        if self._split == "train":
-            self._annotations_mat_path = devkit / "cars_train_annos.mat"
-            self._images_base_path = self._base_folder / "cars_train"
+        self.fpath = os.path.join(root, 'stanford_cars')
+        self.train = split == 'train'
+        if self.train:
+            fpath = self.fpath + '/train'
         else:
-            self._annotations_mat_path = self._base_folder / "cars_test_annos_withlabels.mat"
-            self._images_base_path = self._base_folder / "cars_test"
+            fpath = self.fpath + '/test'
 
-        if download:
-            self.download()
+        self.data = datasets.ImageFolder(fpath, transform=transform, target_transform=target_transform)
 
-        if not self._check_exists():
-            raise RuntimeError("Dataset not found. You can use download=True to download it")
+# class StanfordCars(datasets.StanfordCars):
+#     def __init__(self, root, split='train', transform=None, target_transform=None, download=False):
+#         try:
+#             import scipy.io as sio
+#         except ImportError:
+#             raise RuntimeError("Scipy is not found. This dataset needs to have scipy installed: pip install scipy")
 
-        self._samples = [
-            (
-                str(self._images_base_path / annotation["fname"]),
-                annotation["class"] - 1,  # Original target mapping  starts from 1, hence -1
-            )
-            for annotation in sio.loadmat(self._annotations_mat_path, squeeze_me=True)["annotations"]
-        ]
+#         super(StanfordCars, self).__init__(root, transform=transform, target_transform=target_transform, download=download)
 
-        self.classes = sio.loadmat(str(devkit / "cars_meta.mat"), squeeze_me=True)["class_names"].tolist()
-        self.class_to_idx = {cls: i for i, cls in enumerate(self.classes)}
+#         self._split = verify_str_arg(split, "split", ("train", "test"))
+#         self._base_folder = pathlib.Path(root) / "stanford_cars"
+#         devkit = self._base_folder / "devkit"
 
-    def __len__(self) -> int:
-        return len(self._samples)
+#         if self._split == "train":
+#             self._annotations_mat_path = devkit / "cars_train_annos.mat"
+#             self._images_base_path = self._base_folder / "cars_train"
+#         else:
+#             self._annotations_mat_path = self._base_folder / "cars_test_annos_withlabels.mat"
+#             self._images_base_path = self._base_folder / "cars_test"
 
-    def __getitem__(self, idx: int) -> Tuple[Any, Any]:
-        """Returns pil_image and class_id for given index"""
-        image_path, target = self._samples[idx]
-        pil_image = Image.open(image_path).convert("RGB")
+#         if download:
+#             self.download()
 
-        if self.transform is not None:
-            pil_image = self.transform(pil_image)
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-        return pil_image, target
+#         if not self._check_exists():
+#             raise RuntimeError("Dataset not found. You can use download=True to download it")
 
-    def download(self) -> None:
-        if self._check_exists():
-            return
+#         self._samples = [
+#             (
+#                 str(self._images_base_path / annotation["fname"]),
+#                 annotation["class"] - 1,  # Original target mapping  starts from 1, hence -1
+#             )
+#             for annotation in sio.loadmat(self._annotations_mat_path, squeeze_me=True)["annotations"]
+#         ]
 
-        download_and_extract_archive(
-            url="https://ai.stanford.edu/~jkrause/cars/car_devkit.tgz",
-            download_root=str(self._base_folder),
-            md5="c3b158d763b6e2245038c8ad08e45376",
-        )
-        if self._split == "train":
-            download_and_extract_archive(
-                url="https://ai.stanford.edu/~jkrause/car196/cars_train.tgz",
-                download_root=str(self._base_folder),
-                md5="065e5b463ae28d29e77c1b4b166cfe61",
-            )
-        else:
-            download_and_extract_archive(
-                url="https://ai.stanford.edu/~jkrause/car196/cars_test.tgz",
-                download_root=str(self._base_folder),
-                md5="4ce7ebf6a94d07f1952d94dd34c4d501",
-            )
-            download_url(
-                url="https://ai.stanford.edu/~jkrause/car196/cars_test_annos_withlabels.mat",
-                root=str(self._base_folder),
-                md5="b0a2b23655a3edd16d84508592a98d10",
-            )
+#         self.classes = sio.loadmat(str(devkit / "cars_meta.mat"), squeeze_me=True)["class_names"].tolist()
+#         self.class_to_idx = {cls: i for i, cls in enumerate(self.classes)}
 
-    def _check_exists(self) -> bool:
-        if not (self._base_folder / "devkit").is_dir():
-            return False
+#     def __len__(self) -> int:
+#         return len(self._samples)
 
-        return self._annotations_mat_path.exists() and self._images_base_path.is_dir()
+#     def __getitem__(self, idx: int) -> Tuple[Any, Any]:
+#         """Returns pil_image and class_id for given index"""
+#         image_path, target = self._samples[idx]
+#         pil_image = Image.open(image_path).convert("RGB")
+
+#         if self.transform is not None:
+#             pil_image = self.transform(pil_image)
+#         if self.target_transform is not None:
+#             target = self.target_transform(target)
+#         return pil_image, target
+
+#     def download(self) -> None:
+#         if self._check_exists():
+#             return
+
+#         download_and_extract_archive(
+#             url="https://ai.stanford.edu/~jkrause/cars/car_devkit.tgz",
+#             download_root=str(self._base_folder),
+#             md5="c3b158d763b6e2245038c8ad08e45376",
+#         )
+#         if self._split == "train":
+#             download_and_extract_archive(
+#                 url="https://ai.stanford.edu/~jkrause/car196/cars_train.tgz",
+#                 download_root=str(self._base_folder),
+#                 md5="065e5b463ae28d29e77c1b4b166cfe61",
+#             )
+#         else:
+#             download_and_extract_archive(
+#                 url="https://ai.stanford.edu/~jkrause/car196/cars_test.tgz",
+#                 download_root=str(self._base_folder),
+#                 md5="4ce7ebf6a94d07f1952d94dd34c4d501",
+#             )
+#             download_url(
+#                 url="https://ai.stanford.edu/~jkrause/car196/cars_test_annos_withlabels.mat",
+#                 root=str(self._base_folder),
+#                 md5="b0a2b23655a3edd16d84508592a98d10",
+#             )
+
+#     def _check_exists(self) -> bool:
+#         if not (self._base_folder / "devkit").is_dir():
+#             return False
+
+#         return self._annotations_mat_path.exists() and self._images_base_path.is_dir()
 
 class CUB200(torch.utils.data.Dataset):
     def __init__(self, root, train=True, transform=None, target_transform=None, download=False):        
@@ -756,5 +767,63 @@ class DomainNet(torch.utils.data.Dataset):
     
     def __len__(self):
         return len(self.targets)
+    
+
+# class Imagenet_R(torch.utils.data.Dataset):
+#     def __init__(self, root, train=True, transform=None, target_transform=None, download=False):        
+#         self.root = os.path.expanduser(root)
+#         self.transform = transform
+#         self.target_transform=target_transform
+#         self.train = train
+
+#         self.url = 'https://people.eecs.berkeley.edu/~hendrycks/imagenet-r.tar'
+#         self.filename = 'imagenet-r.tar'
+
+#         self.fpath = os.path.join(root, 'imagenet-r')
+#         self.pre_data_path = '/'.join(root.split('/')[:-1])
+
+#         if not os.path.isfile(self.fpath):
+#             if not download:
+#                raise RuntimeError('Dataset not found. You can use download=True to download it')
+#             else:
+#                 print('Downloading from '+self.url)
+#                 download_url(self.url, root, filename=self.filename)
+
+#         if not os.path.exists(os.path.join(root, 'imagenet-r')):
+#             import tarfile
+#             tar_ref = tarfile.open(os.path.join(root, self.filename), 'r')
+#             tar_ref.extractall(root)
+#             tar_ref.close()
+
+#         import yaml
+#         with open(os.path.join(self.root, 'imagenet-r_train.yaml'), 'r') as f:
+#             train_file = yaml.safe_load(f)
+#         with open(os.path.join(self.root, 'imagenet-r_test.yaml'), 'r') as f:
+#             test_file = yaml.safe_load(f)
+#         assert len(train_file['data']) == len(train_file['targets'])
+#         assert len(test_file["data"]) == len(test_file["targets"])
+
+#         if self.train:
+#             self.data = np.array(train_file["data"])
+#             self.targets = np.array(train_file["targets"])
+#         else:
+#             self.data = np.array(test_file["data"])
+#             self.targets = np.array(test_file["targets"])
+    
+#         self.classes = np.unique(self.targets)
+
+#     def __getitem__(self, idx):
+#         with open(os.path.join(self.pre_data_path, self.data[idx]), 'rb') as f:
+#             image = Image.open(f).convert('RGB')
+#         if self.transform is not None:
+#             image = self.transform(image)
+            
+#         target = self.targets[idx]
+#         if self.target_transform is not None:
+#             target = self.target_transform(target)
+#         return image, target
+    
+#     def __len__(self):
+#         return len(self.targets)
 
         

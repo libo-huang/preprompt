@@ -2,7 +2,7 @@ import torch
 from timm.models import create_model
 from timm.scheduler import create_scheduler
 from timm.optim import create_optimizer
-import time, datetime, os, sys, random, numpy as np
+import time, datetime, os, numpy as np
 from datasets import build_continual_dataloader
 from engines.prepromtp_engine import train_and_evaluate, evaluate_till_now
 import vits.preprompt_vision_transformer as preprompt_vision_transformer
@@ -11,17 +11,6 @@ import vits.preprompt_vision_transformer as preprompt_vision_transformer
 def train(args):
     device = torch.device(args.device)
     data_loader, data_loader_per_cls, class_mask, target_task_map = build_continual_dataloader(args)
-    print(f"Creating original model: {args.original_model}")
-    original_model = create_model(
-            args.original_model,
-            pretrained=args.pretrained,
-            num_classes=args.nb_classes,
-            drop_rate=args.drop,
-            drop_path_rate=args.drop_path,
-            drop_block_rate=None,
-            mlp_structure=args.original_model_mlp_structure,
-        )
-    print(f"Creating model: {args.model}")
     model = create_model(
         args.model,  # 'vit_base_patch16_224'
         pretrained=args.pretrained,  # True
@@ -49,20 +38,13 @@ def train(args):
         use_prefix_tune_for_e_prompt=args.use_prefix_tune_for_e_prompt,  # True
         same_key_value=args.same_key_value,  # False
     )
-    original_model.to(device)
     model.to(device)
-
-    # all backbobe parameters are frozen for original vit model
-    for n, p in original_model.named_parameters():
-        p.requires_grad = False
 
     if args.freeze:  # ['blocks', 'patch_embed', 'cls_token', 'norm', 'pos_embed']. 460900. e_prompt.prompt:5*2*10*5*12*64=384000; head.weight:768*100=76800; head.bias:100.
         # freeze args.freeze[blocks, patch_embed, cls_token] parameters
         for n, p in model.named_parameters():
             if n.startswith(tuple(args.freeze)):
                 p.requires_grad = False
-
-    # print(args)
 
     if args.eval:
         acc_matrix = np.zeros((args.num_tasks, args.num_tasks))
@@ -76,18 +58,13 @@ def train(args):
             else:
                 print('No checkpoint found at:', checkpoint_path)
                 return
-            original_checkpoint_path = os.path.join(args.trained_original_model,
-                                                    'checkpoint/task{}_checkpoint.pth'.format(task_id + 1))
-            if os.path.exists(original_checkpoint_path):
-                print('Loading checkpoint from:', original_checkpoint_path)
-                original_checkpoint = torch.load(original_checkpoint_path, map_location=device)
-                original_model.load_state_dict(original_checkpoint['model'])
-            else:
-                print('No checkpoint found at:', original_checkpoint_path)
-                return
-            _ = evaluate_till_now(model, original_model, data_loader, device,
-                                  task_id, class_mask, target_task_map, acc_matrix, args, )
-
+                
+            _ = evaluate_till_now(model,  # original_model,
+                                  data_loader, device, task_id, class_mask, target_task_map, acc_matrix, args, )
+        
+        print('acc_matrix:\n{}'.format(
+            np.array2string(acc_matrix, precision=2, separator=', ', suppress_small=True)
+        ))
         return
 
     model_without_ddp = model
@@ -107,14 +84,19 @@ def train(args):
 
     if args.larger_prompt_lr:
         base_params = [p for name, p in model_without_ddp.named_parameters() if 'prompt' in name and p.requires_grad == True]  # prompt: 384000个参数可训练
-        base_fc_params = [p for name, p in model_without_ddp.named_parameters() if 'prompt' not in name and p.requires_grad == True]  # head: 76900个参数可训练
+        base_fc_params = [p for name, p in model_without_ddp.named_parameters() if 'head' in name and p.requires_grad == True]  # head: 76900个参数可训练
+        # base_fc_params = [p for name, p in model_without_ddp.named_parameters() if 'prompt' not in name and p.requires_grad == True]  # head: 76900个参数可训练
         base_params = {'params': base_params, 'lr': args.lr, 'weight_decay': args.weight_decay}
         base_fc_params = {'params': base_fc_params, 'lr': args.lr * 0.1, 'weight_decay': args.weight_decay}
         network_params = [base_params, base_fc_params]
-        optimizer = create_optimizer(args, network_params)
+        optimizer = create_optimizer(args, network_params) 
     else:
         optimizer = create_optimizer(args, model_without_ddp)
+    route_net_params = [p for name, p in model_without_ddp.named_parameters() if 'route_net' in name and p.requires_grad == True]  # 76900个参数可训练
+    route_net_params = {'params': route_net_params, 'lr': args.lr * 0.1, 'weight_decay': args.weight_decay}
+    optimizer1 = create_optimizer(args, [route_net_params])
 
+    lr_scheduler1 = None
     if args.sched != 'constant':
         lr_scheduler, _ = create_scheduler(args, optimizer)
     elif args.sched == 'constant':
@@ -125,13 +107,10 @@ def train(args):
     print(f"Start training for {args.epochs} epochs")
     start_time = time.time()
 
-    train_and_evaluate(model, model_without_ddp, original_model,
+    train_and_evaluate(model, model_without_ddp,  # original_model,
                        criterion, data_loader, data_loader_per_cls,
-                       optimizer, lr_scheduler, device, class_mask, target_task_map, args)
+                       optimizer1, optimizer, lr_scheduler1, lr_scheduler, device, class_mask, target_task_map, args)
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print(f"Total training time: {total_time_str}")
-
-    
-

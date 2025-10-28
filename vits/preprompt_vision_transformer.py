@@ -35,7 +35,7 @@ from timm.models.helpers import build_model_with_cfg, resolve_pretrained_cfg, na
 from timm.models.layers import PatchEmbed, Mlp, DropPath, trunc_normal_, lecun_normal_
 from timm.models.registry import register_model
 
-from peft.prompt.hide_prompt import EPrompt
+from peft.prompt.pre_prompt import EPrompt
 from attention import PreT_Attention
 
 _logger = logging.getLogger(__name__)
@@ -527,6 +527,9 @@ class VisionTransformer(nn.Module):
         self.fc_norm = norm_layer(embed_dim) if use_fc_norm else nn.Identity()  # nn.Identity()
         self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()  # 768,100
 
+        # 生成路由 logits 的轻量级网络
+        self.route_net = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()  # 768,100
+
         if weight_init != 'skip':
             self.init_weights(weight_init)
 
@@ -662,6 +665,24 @@ class VisionTransformer(nn.Module):
 
         return res
 
+
+    def forward_route(self, res):
+        x = res['x']  # [24, 197, 768]
+        if self.class_token and self.head_type == 'token':
+            if self.prompt_pool:
+                x = x[:, self.total_prompt_len]  # [24, 768]
+            else:
+                x = x[:, 0]
+
+        res['pre_logits'] = x  # [24, 768]
+        res['features'] = x  # [24, 768]
+
+        x = self.fc_norm(x)  # [24,768]
+        res['logits'] = self.route_net(x)  # [24,100]
+
+        return res
+        
+
     def forward(self, x, task_id=-1, prompt_id=None, prompt_weight=None, train=False, fc_only=False, prompt_momentum=0):
         if fc_only:  # 总经过的参数是2440036
             res = dict()
@@ -670,8 +691,34 @@ class VisionTransformer(nn.Module):
             res['logits'] = self.head(x)
             return res
         res = self.forward_features(x, task_id=task_id, prompt_id=prompt_id, prompt_weight=prompt_weight, train=train, prompt_momentum=prompt_momentum)
-        res = self.forward_head(res)
+        if self.prompt_pool:
+            res = self.forward_head(res)
+        else: 
+            res = self.forward_route(res)
+        
         return res
+
+
+
+def gumbel_softmax(logits, temperature=1.0, hard=False):
+    """
+    Args:
+        logits: [..., num_classes]
+        temperature: 温度参数 τ
+        hard: 是否使用 Straight-Through 估计
+    Returns:
+        Sampled one-hot vector of shape [..., num_classes]
+    """
+    # 生成 Gumbel 噪声
+    gumbels = -torch.empty_like(logits).exponential_().log()  # ~Gumbel(0,1)
+    y = logits + gumbels  # 添加噪声
+    y = F.softmax(y / temperature, dim=-1)  # Gumbel-Softmax
+
+    if hard:
+        # Straight-Through (ST) 估计
+        y_hard = torch.zeros_like(y).scatter_(-1, y.argmax(dim=-1, keepdim=True), 1.0)
+        y = (y_hard - y).detach() + y  # 梯度绕过离散操作
+    return y
 
 
 def init_weights_vit_timm(module: nn.Module, name: str = ''):

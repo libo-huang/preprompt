@@ -1,3 +1,4 @@
+
 """
 Train and eval functions used in main.py
 """
@@ -19,20 +20,23 @@ from timm.scheduler import create_scheduler
 from torch import optim
 import utils
 from torch.distributions.multivariate_normal import MultivariateNormal
+import torch.nn.functional as F
+from itertools import chain
 
 
-def train_one_epoch(model: torch.nn.Module, original_model: torch.nn.Module,
-                    criterion, data_loader: Iterable, optimizer: torch.optim.Optimizer,
+def train_one_epoch(model: torch.nn.Module,  # original_model: torch.nn.Module,
+                    criterion, data_loader: Iterable, optimizer1, optimizer: torch.optim.Optimizer,
                     device: torch.device, epoch: int, max_norm: float = 0,
                     set_training_mode=True, task_id=-1, class_mask=None, target_task_map=None, args=None, ):
     model.train(set_training_mode)
-    original_model.eval()
+    # original_model.eval()
 
     if args.distributed and utils.get_world_size() > 1:
         data_loader.sampler.set_epoch(epoch)
 
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('Lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
+    metric_logger.add_meter('Loss1', utils.SmoothedValue(window_size=1, fmt='{value:.4f}'))
     metric_logger.add_meter('Loss', utils.SmoothedValue(window_size=1, fmt='{value:.4f}'))
     header = f'Train: Epoch[{epoch + 1:{int(math.log10(args.epochs)) + 1}}/{args.epochs}]'  # 'Train: Epoch[1/1]'
 
@@ -40,28 +44,33 @@ def train_one_epoch(model: torch.nn.Module, original_model: torch.nn.Module,
         input = input.to(device, non_blocking=True)
         target = target.to(device, non_blocking=True)
 
-        with torch.no_grad():
-            if original_model is not None:
-                output = original_model(input)
-                logits = output['logits']  # 为什么original_model的输出是[24,100](主要是这100怎么来的)?  TII阶段训练过的模型
+        # 第一轮预测
+        # model.eval()  # 固定Dropout/BatchNorm
+        use_e_promot, use_prompt_mask, prompt_pool = model.module.use_e_prompt, model.module.use_prompt_mask, model.module.prompt_pool
+        model.module.use_e_prompt, model.module.use_prompt_mask, model.module.prompt_pool= False, False, False
+        # with torch.no_grad():
+        output1 = model(input)
+        model.module.use_e_prompt, model.module.use_prompt_mask, model.module.prompt_pool = use_e_promot, use_prompt_mask, prompt_pool
+        logits1 = output1['logits']
 
-                if args.train_mask and class_mask is not None:  # 先通过original_model的结果来挑选prompt, 然后用挑出的prompt训练
-                    mask = []
-                    for id in range(task_id + 1):
-                        mask.extend(class_mask[id])
-                    not_mask = np.setdiff1d(np.arange(args.nb_classes), mask)
-                    not_mask = torch.tensor(not_mask, dtype=torch.int64).to(device)
-                    logits = logits.index_fill(dim=1, index=not_mask, value=float('-inf'))
-                    prompt_id = torch.max(logits, dim=1)[1]
-                    # translate cls to task_id. 根据推理的cls id找到对应的task id
-                    prompt_id = torch.tensor([target_task_map[v.item()] for v in prompt_id], device=device).unsqueeze(
-                        -1)
-                else:
-                    prompt_id = None
-            else:
-                raise NotImplementedError("original model is None")
+        # here is the trick to mask out classes of non-current tasks        使用task ID信息
+        if args.train_mask and class_mask is not None:  # Ture, [[], [], ..., []]
+            mask = class_mask[task_id]  # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+            not_mask = np.setdiff1d(np.arange(args.nb_classes), mask)
+            not_mask = torch.tensor(not_mask, dtype=torch.int64).to(device)  # [10, 11, ..., 99]
+            logits1 = logits1.index_fill(dim=1, index=not_mask, value=float('-inf'))
+
+        loss1 = criterion(logits1, target)  # base criterion (CrossEntropyLoss)
+        
+        optimizer1.zero_grad()
+        loss1.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
+        optimizer1.step()       
+
+        prompt_id = torch.full((input.size(0),), task_id, dtype=torch.long, device=device)
         output = model(input, task_id=task_id, prompt_id=prompt_id, train=set_training_mode,  # True
                        prompt_momentum=args.prompt_momentum)  # 0.01
+
         logits = output['logits']  # [24, 100]
         # here is the trick to mask out classes of non-current tasks
         if args.train_mask and class_mask is not None:
@@ -72,7 +81,7 @@ def train_one_epoch(model: torch.nn.Module, original_model: torch.nn.Module,
 
         loss = criterion(logits, target)  # base criterion (CrossEntropyLoss)
         # TODO add contrastive loss
-        loss += orth_loss(output['pre_logits'], target, device, args)  # output['pre_logits']是什么？进入adapter前的768维特征（区别于输入到100分类头前的logits）。
+        # loss += orth_loss(output['pre_logits'], target, device, args)  # output['pre_logits']是什么？进入adapter前的768维特征（区别于输入到100分类头前的logits）。
         acc1, acc5 = accuracy(logits, target, topk=(1, 5))
 
         if not math.isfinite(loss.item()):
@@ -85,6 +94,7 @@ def train_one_epoch(model: torch.nn.Module, original_model: torch.nn.Module,
         optimizer.step()
 
         torch.cuda.synchronize()
+        metric_logger.update(Loss1=loss1.item())
         metric_logger.update(Loss=loss.item())
         metric_logger.update(Lr=optimizer.param_groups[0]["lr"])  # 只输出prompt的学习率
         metric_logger.meters['Acc@1'].update(acc1.item(), n=input.shape[0])
@@ -98,8 +108,8 @@ def train_one_epoch(model: torch.nn.Module, original_model: torch.nn.Module,
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
 
-@torch.no_grad()
-def evaluate(model: torch.nn.Module, original_model: torch.nn.Module, data_loader,
+@torch.no_grad()  # def evaluate(model: torch.nn.Module, original_model: torch.nn.Module, data_loader,
+def evaluate(model: torch.nn.Module, data_loader,
              device, i=-1, task_id=-1, class_mask=None, target_task_map=None, args=None, ):
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -108,32 +118,30 @@ def evaluate(model: torch.nn.Module, original_model: torch.nn.Module, data_loade
 
     # switch to evaluation mode
     model.eval()
-    original_model.eval()
 
     with torch.no_grad():
         for input, target in metric_logger.log_every(data_loader, args.print_freq, header):
             input = input.to(device, non_blocking=True)
             target = target.to(device, non_blocking=True)
 
-            # compute output
-            with torch.no_grad():
-                if original_model is not None:  # 取出有被训练的分类头输出; original_model用于推理task ID, 也就是这里的prompt_id
-                    output = original_model(input)
-                    logits = output['logits']
-                    if args.train_mask and class_mask is not None:
-                        mask = []  # mask掉没有训练过的分类头
-                        for id in range(task_id + 1):
-                            mask.extend(class_mask[id])
-                        not_mask = np.setdiff1d(np.arange(args.nb_classes), mask)
-                        not_mask = torch.tensor(not_mask, dtype=torch.int64).to(device)
-                        logits = logits.index_fill(dim=1, index=not_mask, value=float('-inf'))
-                    prompt_id = torch.max(logits, dim=1)[1]
-                    # translate cls to task_id
-                    prompt_id = torch.tensor([target_task_map[v.item()] for v in prompt_id], device=device).unsqueeze(
-                        -1)
-                    # print(prompt_id)
-                else:
-                    raise NotImplementedError("original model is None")
+            # # 第一轮预测推理prompt [测试策略1]
+            use_e_promot, use_prompt_mask, prompt_pool = model.module.use_e_prompt, model.module.use_prompt_mask, model.module.prompt_pool
+            model.module.use_e_prompt, model.module.use_prompt_mask, model.module.prompt_pool= False, False, False
+            output1 = model(input)
+            model.module.use_e_prompt, model.module.use_prompt_mask, model.module.prompt_pool = use_e_promot, use_prompt_mask, prompt_pool
+            logits1 = output1['logits']
+            if args.train_mask and class_mask is not None:
+                mask = []  # mask掉没有训练过的分类头
+                for id in range(task_id + 1):
+                    mask.extend(class_mask[id])
+                not_mask = np.setdiff1d(np.arange(args.nb_classes), mask)
+                not_mask = torch.tensor(not_mask, dtype=torch.int64).to(device)
+                logits1 = logits1.index_fill(dim=1, index=not_mask, value=float('-inf'))
+            prompt_id = torch.max(logits1, dim=1)[1]
+            prompt_id = torch.tensor([target_task_map[v.item()] for v in prompt_id], device=device).unsqueeze(-1)
+
+            # 已知task ID用于prompt推理  [测试策略2] TODO
+            # prompt_id = torch.tensor([target_task_map[v.item()] for v in target], device=device).unsqueeze(-1)
 
             output = model(input, task_id=task_id, prompt_id=prompt_id)
             logits = output['logits']  # [24, 100]
@@ -169,12 +177,12 @@ def evaluate(model: torch.nn.Module, original_model: torch.nn.Module, data_loade
 
 
 @torch.no_grad()
-def evaluate_till_now(model: torch.nn.Module, original_model: torch.nn.Module, data_loader,
+def evaluate_till_now(model: torch.nn.Module, data_loader,
                       device, task_id=-1, class_mask=None, target_task_map=None, acc_matrix=None, args=None, ):
     stat_matrix = np.zeros((4, args.num_tasks))  # 3 for Acc@1, Acc@5, Loss
 
     for i in range(task_id + 1):
-        test_stats = evaluate(model=model, original_model=original_model, data_loader=data_loader[i]['val'],
+        test_stats = evaluate(model=model, data_loader=data_loader[i]['val'],
                               device=device, i=i, task_id=task_id, class_mask=class_mask, target_task_map=target_task_map,
                               args=args)
 
@@ -206,9 +214,11 @@ def evaluate_till_now(model: torch.nn.Module, original_model: torch.nn.Module, d
     return test_stats
 
 
-def train_and_evaluate(model: torch.nn.Module, model_without_ddp: torch.nn.Module, original_model: torch.nn.Module,
+def train_and_evaluate(model: torch.nn.Module, model_without_ddp: torch.nn.Module,
                        criterion, data_loader: Iterable, data_loader_per_cls: Iterable,
+                       optimizer1,
                        optimizer: torch.optim.Optimizer,
+                       lr_scheduler1,
                        lr_scheduler,
                        device: torch.device,
                        class_mask=None, target_task_map=None, args=None, ):
@@ -231,32 +241,23 @@ def train_and_evaluate(model: torch.nn.Module, model_without_ddp: torch.nn.Modul
                 base_params = [p for name, p in model_without_ddp.named_parameters() if
                             'prompt' in name and p.requires_grad == True]  # prompt的参数 384000
                 base_fc_params = [p for name, p in model_without_ddp.named_parameters() if
-                                'prompt' not in name and p.requires_grad == True]  # head的参数 76900
+                                'head' in name and p.requires_grad == True]  # head的参数 76900
+                # base_fc_params = [p for name, p in model_without_ddp.named_parameters() if
+                #                 'prompt' not in name and p.requires_grad == True]  # head的参数 76900
                 base_params = {'params': base_params, 'lr': args.lr, 'weight_decay': args.weight_decay}
                 base_fc_params = {'params': base_fc_params, 'lr': args.lr * 0.1, 'weight_decay': args.weight_decay}
                 network_params = [base_params, base_fc_params]
                 optimizer = create_optimizer(args, network_params)
             else:
                 optimizer = create_optimizer(args, model)
-            
+            route_net_params = [p for name, p in model_without_ddp.named_parameters() if 'route_net' in name and p.requires_grad == True]  # 76900个参数可训练
+            route_net_params = {'params': route_net_params, 'lr': args.lr * 0.1, 'weight_decay': args.weight_decay}
+            optimizer1 = create_optimizer(args, [route_net_params])
+            lr_scheduler1 = None
             if args.sched != 'constant':
                 lr_scheduler, _ = create_scheduler(args, optimizer)
             elif args.sched == 'constant':
                 lr_scheduler = None
-
-        # load original model checkpoint
-        if args.trained_original_model:  # 用连续走了10个任务的original_model是不是有问题？没有问题，gihtub的issue中作者回复
-            original_checkpoint_path = os.path.join(args.trained_original_model,
-                                                    'checkpoint/task{}_checkpoint.pth'.format(task_id + 1))
-            if os.path.exists(original_checkpoint_path):
-                print('Loading checkpoint from:', original_checkpoint_path)
-                original_checkpoint = torch.load(original_checkpoint_path, map_location=device)
-                original_model.load_state_dict(original_checkpoint['model'])
-            else:
-                print('No checkpoint found at:', original_checkpoint_path)
-                return
-        # if model already trained
-        checkpoint_path = os.path.join(args.output_dir, 'checkpoint/task{}_checkpoint.pth'.format(task_id + 1))
         
         # Transfer previous learned prompt params to the new prompt
         if args.prompt_pool and args.shared_prompt_pool:  # 使用历史e_prompt初始化当前要训练的e_prompt
@@ -308,8 +309,8 @@ def train_and_evaluate(model: torch.nn.Module, model_without_ddp: torch.nn.Modul
                         optimizer.param_groups[0]['params'] = model.parameters()
 
         for epoch in range(args.epochs):  # original_model有没有训练？ 有，在第一阶段训练好的。
-            train_stats = train_one_epoch(model=model, original_model=original_model, criterion=criterion,
-                                            data_loader=data_loader[task_id]['train'], optimizer=optimizer,
+            train_stats = train_one_epoch(model=model, criterion=criterion,
+                                            data_loader=data_loader[task_id]['train'], optimizer1=optimizer1, optimizer=optimizer,
                                             device=device, epoch=epoch, max_norm=args.clip_grad,  # max_norm=1.0
                                             set_training_mode=True, task_id=task_id, class_mask=class_mask,  # task_id=0
                                             target_task_map=target_task_map, args=args, )
@@ -328,15 +329,14 @@ def train_and_evaluate(model: torch.nn.Module, model_without_ddp: torch.nn.Modul
                         + args.prompt_momentum * model.module.e_prompt.prompt[:, :, 0:task_id].detach().clone().mean(
                             dim=2))
 
-
-        pre_ca_test_stats = evaluate_till_now(model=model, original_model=original_model, data_loader=data_loader,
+        pre_ca_test_stats = evaluate_till_now(model=model, data_loader=data_loader,
                                                 device=device,
                                                 task_id=task_id, class_mask=class_mask,
                                                 target_task_map=target_task_map,
                                                 acc_matrix=pre_ca_acc_matrix, args=args)  # pre_ca_acc_matrix 比 acc_matrix 少了task 0的结果
         # compute mean and variance
         if not args.no_mean_preprompt:
-            _compute_mean(model=model, data_loader=data_loader_per_cls, device=device, task_id=task_id,
+            cls_data = _compute_mean(model=model, data_loader=data_loader_per_cls, device=device, task_id=task_id,
                       class_mask=class_mask[task_id], args=args)
 
         if task_id == 0:
@@ -347,12 +347,11 @@ def train_and_evaluate(model: torch.nn.Module, model_without_ddp: torch.nn.Modul
                 test_stats = pre_ca_test_stats
                 acc_matrix[:,task_id] = pre_ca_acc_matrix[:,task_id]
             else:                
-                train_task_adaptive_prediction(model, args, device, class_mask, task_id)  # 用 pass 的思想 fine tuning 全连接层（区别在于一个类用了多个 prompt ）
-                test_stats = evaluate_till_now(model=model, original_model=original_model, data_loader=data_loader,
+                train_task_adaptive_prediction(model, args, device, class_mask, task_id, cls_data)  # 用 pass 的思想 fine tuning 全连接层（区别在于一个类用了多个 prompt ）
+                test_stats = evaluate_till_now(model=model, data_loader=data_loader,
                                        device=device,
                                        task_id=task_id, class_mask=class_mask, target_task_map=target_task_map,
                                        acc_matrix=acc_matrix, args=args)
-
         if args.output_dir and utils.is_main_process():
             Path(os.path.join(args.output_dir, 'checkpoint')).mkdir(parents=True, exist_ok=True)
 
@@ -373,9 +372,6 @@ def train_and_evaluate(model: torch.nn.Module, model_without_ddp: torch.nn.Modul
                 }
 
         if args.output_dir and utils.is_main_process():
-            # with open(os.path.join(args.output_dir,
-            #                        '{}_stats.txt'.format(datetime.datetime.now().strftime('log_%Y_%m_%d_%H_%M'))),
-            #           'a') as f:
             with open(output_file, 'a') as f:
                 f.write(json.dumps(log_stats).replace('"\\t1": "\\n",', '\n').replace('"\\t2": "\\n",', '\n') + '\n\n')
     
@@ -389,7 +385,7 @@ def train_and_evaluate(model: torch.nn.Module, model_without_ddp: torch.nn.Modul
 def _compute_mean(model: torch.nn.Module, data_loader: Iterable, device: torch.device, task_id, class_mask=None,
                   args=None, ):
     model.eval()
-
+    cls_data = dict()
     for cls_id in class_mask:
         data_loader_cls = data_loader[cls_id]['train']
         features_per_cls = []
@@ -414,27 +410,34 @@ def _compute_mean(model: torch.nn.Module, data_loader: Iterable, device: torch.d
             # print(features_per_cls.shape)
             cls_mean[cls_id] = features_per_cls.mean(dim=0)
             cls_cov[cls_id] = torch.diag(torch.cov(features_per_cls.T) + (torch.eye(cls_mean[cls_id].shape[-1]) * 1e-4).to(device))
-        if args.ca_storage_efficient_method == 'multi-centroid':
+        if args.ca_storage_efficient_method in {'multi-centroid', 'feat-trans'}:
             from sklearn.cluster import KMeans
             n_clusters = args.n_centroids
             features_per_cls = torch.cat(features_per_cls_list, dim=0).cpu().numpy()
-            kmeans = KMeans(n_clusters=n_clusters, n_init='auto')
+            kmeans = KMeans(n_clusters=n_clusters, n_init=1)
             kmeans.fit(features_per_cls)
             cluster_lables = kmeans.labels_
             cluster_means = []
             cluster_vars = []
+            cluster_datas = []
             for i in range(n_clusters):
                cluster_data = features_per_cls[cluster_lables == i]
                cluster_mean = torch.tensor(np.mean(cluster_data, axis=0), dtype=torch.float64).to(device)
                cluster_var = torch.tensor(np.var(cluster_data, axis=0), dtype=torch.float64).to(device)
                cluster_means.append(cluster_mean)
                cluster_vars.append(cluster_var)
+               cluster_datas.append(torch.tensor(cluster_data, dtype=torch.float64).to(device)) 
             
             cls_mean[cls_id] = cluster_means  # L216, L217 已经将cls_mean和cls_cov global化了
             cls_cov[cls_id] = cluster_vars
+            cls_data[cls_id] = cluster_datas
 
+    if task_id>0:
+        return cls_data
+    else:
+        return 
 
-def train_task_adaptive_prediction(model: torch.nn.Module, args, device, class_mask=None, task_id=-1):
+def train_task_adaptive_prediction(model: torch.nn.Module, args, device, class_mask=None, task_id=-1, cls_data=None):
     model.train()
     run_epochs = args.crct_epochs
     crct_num = 0
@@ -456,7 +459,7 @@ def train_task_adaptive_prediction(model: torch.nn.Module, args, device, class_m
 
         sampled_data = []
         sampled_label = []
-        num_sampled_pcls = args.batch_size * 5
+        num_sampled_pcls = args.batch_size * 5 
 
         metric_logger = utils.MetricLogger(delimiter="  ")
         metric_logger.add_meter('Lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
@@ -475,6 +478,8 @@ def train_task_adaptive_prediction(model: torch.nn.Module, args, device, class_m
 
                     sampled_label.extend([c_id] * num_sampled_pcls)
 
+            sampled_label = torch.tensor(sampled_label).long().to(device)
+
         elif args.ca_storage_efficient_method == 'multi-centroid':
             for i in range(task_id + 1):
                for c_id in class_mask[i]:
@@ -487,12 +492,45 @@ def train_task_adaptive_prediction(model: torch.nn.Module, args, device, class_m
                        sampled_data_single = m.sample(sample_shape=(num_sampled_pcls,))
                        sampled_data.append(sampled_data_single)
                        sampled_label.extend([c_id] * num_sampled_pcls)
+            
+            sampled_label = torch.tensor(sampled_label).long().to(device)
+
+        elif args.ca_storage_efficient_method == 'feat-trans':
+            for i in range(task_id):  # 为历史任务生成样本
+                for c_id in class_mask[i]:  # 为任务中的每个类别生成样本
+                    for cluster in range(len(cls_mean[c_id])):  # 为任务中类别的簇中心生成样本 每个簇中心生成一个batch_size的样本
+                        mean = cls_mean[c_id][cluster]
+                        # 找到与历史中心最接近的当前簇中心
+                        min_dist = float('inf')
+                        closest_cluster_data = None
+                        for j in class_mask[task_id]:
+                            for current_cluster_id in range(len(cls_data[j])):
+                                current_cluster_data = cls_data[j][current_cluster_id]
+                                current_center = cls_mean[j][current_cluster_id]
+                                dist = 1 - F.cosine_similarity(mean, current_center, dim=0)  # torch.norm(mean - current_center)
+                                if dist < min_dist:
+                                    min_dist = dist
+                                    closest_cluster_data = current_cluster_data - current_center + mean
+                                    current_cluster_label = [c_id]*len(closest_cluster_data)
+                        sampled_data.append(closest_cluster_data)
+                        sampled_label.append(current_cluster_label)
+
+            assert set(class_mask[task_id]) == set(cls_data.keys()), "class_mask[task_id] 和 cls_data.keys() 不相同"
+            for i in class_mask[task_id]:  # 为当前任务生成样本
+                for cluster in range(len(cls_data[i])):
+                    sample = cls_data[i][cluster]
+                    sampled_data.append(sample)
+                    sampled_label.append([i]*len(sample))
+            
+            sampled_label = torch.tensor(list(chain.from_iterable(sampled_label))).long().to(device)
+
+            num_sampled_pcls = num_sampled_pcls if args.batch_size * 5 * crct_num <= sampled_label.shape[0] else sampled_label.shape[0] // crct_num
         else:
             raise NotImplementedError
 
 
         sampled_data = torch.cat(sampled_data, dim=0).float().to(device)
-        sampled_label = torch.tensor(sampled_label).long().to(device)
+        # sampled_label = torch.tensor(sampled_label).long().to(device)
         print(sampled_data.shape)
 
         inputs = sampled_data
@@ -527,9 +565,6 @@ def train_task_adaptive_prediction(model: torch.nn.Module, args, device, class_m
 
             optimizer.zero_grad()
             loss.backward()
-            #for name, p in model.named_parameters():
-            #    if p.requires_grad and p.grad is None:
-            #        print(name)
             optimizer.step()
             torch.cuda.synchronize()
 
@@ -564,4 +599,3 @@ def orth_loss(features, targets, device, args):  # 为什么要让batch内的特
         loss = torch.nn.functional.cross_entropy(sim, torch.arange(0, sim.shape[0]).long().to(device))
         return args.reg * loss
         # return 0.
-

@@ -205,6 +205,10 @@ def get_dataset(dataset, transform_train, transform_val, args, target_transform=
         dataset_train = Imagenet_R(args.data_path, train=True, download=True, transform=transform_train).data
         dataset_val = Imagenet_R(args.data_path, train=False, download=True, transform=transform_val).data
 
+    elif dataset == 'FMoW':
+        dataset_train = FMoW(args.data_path, train=True, download=True, transform=transform_train, target_transform=target_transform).data
+        dataset_val = FMoW(args.data_path, train=False, download=True, transform=transform_val, target_transform=target_transform).data
+
     else:
         raise ValueError('Dataset {} not found.'.format(dataset))
 
@@ -232,7 +236,7 @@ def split_single_dataset(dataset_train, dataset_val, args):
         test_split_indices = []
 
         scope = labels[:classes_per_task]
-        labels = labels[classes_per_task:]
+        labels = labels[classes_per_task:]  # 通过labels切片更新labels
 
         mask.append(scope)
         for k in scope:  # scope为key，value为task id
@@ -256,10 +260,16 @@ def split_single_dataset(dataset_train, dataset_val, args):
 def split_single_class_dataset(dataset_train, dataset_val, mask, args):
     nb_classes = len(dataset_val.classes)
     print(nb_classes)
-    split_datasets = dict()
+    split_datasets = dict()  # 每个类别一个元素，每个元素包含 train 和 val subset
     print(mask)
     for i in range(len(mask)):
         single_task_labels = mask[i]
+        # print(single_task_labels)
+
+        # if args.dataset.startswith('Split-'):
+        #     cls_ids = single_task_labels
+        # else:
+        #     cls_ids = list(range(len(single_task_labels)))
         for cls_id in single_task_labels:
             train_split_indices = []
             test_split_indices = []
@@ -291,8 +301,8 @@ def split_single_class_dataset(dataset_train, dataset_val, mask, args):
 
 def build_transform(is_train, args):
     resize_im = args.input_size > 32
-    dset_mean = (0.5, 0.5, 0.5)
-    dset_std = (0.5, 0.5, 0.5)
+    dset_mean = (0.5, 0.5, 0.5)  # 增加的内容
+    dset_std = (0.5, 0.5, 0.5)  # 增加的内容
     if is_train:
         scale = (0.05, 1.0)
         ratio = (3. / 4., 4. / 3.)
@@ -300,7 +310,7 @@ def build_transform(is_train, args):
             transforms.RandomResizedCrop(args.input_size, scale=scale, ratio=ratio),
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToTensor(),
-            transforms.Normalize(dset_mean, dset_std)
+            transforms.Normalize(dset_mean, dset_std)  # 增加的内容
         ])
         return transform
 
@@ -317,6 +327,32 @@ def build_transform(is_train, args):
     return transforms.Compose(t)
 
 
+#def build_transform(is_train, args):
+#    resize_im = args.input_size > 32
+#    dset_mean = (0.0, 0.0, 0.0)
+#    dset_std = (1.0, 1.0, 1.0)
+#
+#    if is_train:
+#        transform = transforms.Compose([
+#            transforms.RandomResizedCrop((args.input_size, args.input_size)),
+#            transforms.RandomHorizontalFlip(),
+#            transforms.ToTensor(),
+#            transforms.Normalize(dset_mean, dset_std),
+#        ])
+#        return transform
+#
+#    t = []
+#    if resize_im:
+#        size = int((256 / 224) * args.input_size)
+#        t.append(
+#            transforms.Resize(size),  # to maintain same ratio w.r.t. 224 images
+#        )
+#    t.append(transforms.ToTensor())
+#    t.append(transforms.Normalize(dset_mean, dset_std))
+
+#    return transforms.Compose(t)
+
+
 def build_cifar_transform(is_train, args):
     resize_im = args.input_size > 32
     if is_train:
@@ -327,6 +363,7 @@ def build_cifar_transform(is_train, args):
             transforms.RandomHorizontalFlip(),
             transforms.ColorJitter(brightness=63 / 255),
             transforms.ToTensor(),
+            # transforms.Normalize(mean=(0.5071, 0.4867, 0.4408), std=(0.2675, 0.2565, 0.2761)),
             transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
         ])
         return transform
@@ -340,8 +377,76 @@ def build_cifar_transform(is_train, args):
         t.append(transforms.CenterCrop(args.input_size))
     t.append(transforms.ToTensor())
     t.append(transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)))
+    # t.append(transforms.Normalize(mean=(0.5071, 0.4867, 0.4408), std=(0.2675, 0.2565, 0.2761)))
 
     return transforms.Compose(t)
+
+
+# This is used for few shot learning
+def split_multiple_dataset(datasets_info, args):
+    split_datasets = list()
+    target_dataset_map = dict()
+    target_task_map = dict()
+    task_dataset_map = dict()
+    mask = list()
+    last_index = 0 
+    num_tasks = 0
+    last_task = 0
+    for name, dataset in datasets_info.items():
+        args.nb_classes += dataset['num_classes']
+        num_tasks += dataset['num_tasks']
+        max_classes_per_task = math.ceil(dataset['num_classes'] / dataset['num_tasks'])
+        class_per_task = [max_classes_per_task for i in range(dataset['num_tasks'])]
+        class_per_task[-1] = dataset['num_classes'] % max_classes_per_task if dataset['num_classes'] % max_classes_per_task != 0 else class_per_task[-1]
+        labels = [i + last_index for i in range(dataset['num_classes'])]
+
+        if args.shuffle:
+            random.shuffle(labels)
+        
+        for i in range(dataset['num_tasks']):
+            train_split_indices = []
+            test_split_indices = []
+
+            scope = labels[:class_per_task[i]]
+            labels = labels[class_per_task[i]:]
+
+            mask.append(scope)
+
+            for k in range(len(dataset['train'].targets)):
+                if int(dataset['train'].targets[k]) + last_index in scope:
+                    train_split_indices.append(k)
+
+            for h in range(len(dataset['val'].targets)):
+                if int(dataset['val'].targets[h]) + last_index in scope:
+                    test_split_indices.append(h)
+
+            subset_train, subset_val = Subset(dataset['train'], train_split_indices), Subset(dataset['val'], test_split_indices)
+
+            split_datasets.append([subset_train, subset_val])
+            task_dataset_map[i + last_task] = name
+
+        
+        last_index += dataset['num_classes']
+        last_task += dataset['num_tasks']
+
+    print(mask)
+    tasks = [i for i in range(num_tasks)]
+    if args.shuffle:
+        random.shuffle(tasks)
+
+    shuffle_split_datasets = []
+    shuffle_mask = []
+    shuffle_task_dataset_map = dict()
+
+    for i, task_id in enumerate(tasks):
+        shuffle_split_datasets.append(split_datasets[task_id])
+        shuffle_mask.append(mask[task_id])
+        shuffle_task_dataset_map[i] = task_dataset_map[task_id]
+        for k in mask[task_id]:
+            target_task_map[k] = i
+            target_dataset_map[k] = task_dataset_map[task_id]
+
+    return shuffle_split_datasets, shuffle_mask, target_dataset_map, target_task_map, shuffle_task_dataset_map
 
 
 def build_upstream_continual_dataloader(args):
@@ -363,6 +468,8 @@ def build_upstream_continual_dataloader(args):
             transform_val = build_transform(False, args)
         dataset_train, dataset_val = get_dataset(dataset.replace('Split-', ''), transform_train, transform_val,
                                                  args, target_transform=partial(target_transform, nb_classes=last_classes_index))
+        # dataset_train_mean, dataset_val_mean = get_dataset(dataset.replace('Split-', ''), transform_val,
+        #                                                    transform_val, args)
 
         datasets_info[i] = dict()
         datasets_info[i]['train'] = dataset_train

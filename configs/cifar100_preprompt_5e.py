@@ -111,7 +111,7 @@ def get_args_parser(subparsers):
 
     # Use prompt pool in L2P to implement E-Prompt
     subparsers.add_argument('--prompt_pool', default=True, type=bool, )
-    subparsers.add_argument('--size', default=10, type=int, )
+    subparsers.add_argument('--size', default=10, type=int, )  # TODO 需要和任务数一致
     subparsers.add_argument('--length', default=20, type=int, )
     subparsers.add_argument('--top_k', default=1, type=int, )
     subparsers.add_argument('--initializer', default='uniform', type=str, )
@@ -148,7 +148,7 @@ def get_args_parser(subparsers):
     subparsers.add_argument('--reg', default=0, type=float)
     subparsers.add_argument('--not_train_ca', action='store_true')
     subparsers.add_argument('--ca_epochs', default=30, type=int)
-    subparsers.add_argument('--ca_storage_efficient_method', default='multi-centroid', choices=['covariance', 'multi-centroid', 'variance'], type=str)
+    subparsers.add_argument('--ca_storage_efficient_method', default='multi-centroid', choices=['covariance', 'multi-centroid', 'variance', 'feat-trans'], type=str)
     subparsers.add_argument('--n_centroids', default=1, type=int)
     # Misc parameters
     subparsers.add_argument('--print_freq', type=int, default=10, help='The frequency of printing')

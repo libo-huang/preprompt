@@ -1,21 +1,9 @@
-import os.path
-import sys
 import argparse
-import datetime
 import random
 import numpy as np
-import time
 import torch
 import torch.backends.cudnn as cudnn
-
 from pathlib import Path
-
-from timm.models import create_model
-from timm.scheduler import create_scheduler
-from timm.optim import create_optimizer
-
-from datasets import build_continual_dataloader
-
 import utils
 import warnings
 
@@ -38,10 +26,13 @@ def get_args():
         config_parser = subparser.add_parser('imr_preprompt_5e', help='Split-ImageNet-R PrePrompt configs')
     elif config == 'five_datasets_preprompt_5e':
         from configs.five_datasets_preprompt_5e import get_args_parser
-        config_parser = subparser.add_parser('five_datasetspreprompt_5e', help='five datasets PrePrompt configs')
+        config_parser = subparser.add_parser('five_datasets_preprompt_5e', help='five datasets PrePrompt configs')
     elif config == 'cub_preprompt_5e':
         from configs.cub_preprompt_5e import get_args_parser
         config_parser = subparser.add_parser('cub_preprompt_5e', help='Split-CUB PrePrompt configs')
+    # elif config == 'cars196_preprompt_5e':
+    #     from configs.cars196_preprompt_5e import get_args_parser
+    #     config_parser = subparser.add_parser('cars196_preprompt_5e', help='Split-cars196 PrePrompt configs')
     else:
         raise NotImplementedError
 
@@ -62,10 +53,7 @@ def main(args):
     random.seed(seed)
     cudnn.benchmark = True
 
-    if hasattr(args, 'train_inference_task_only') and args.train_inference_task_only:
-        import trainers.pft_trainer as pft_trainer
-        pft_trainer.train(args)
-    elif 'preprompt' in args.config and not args.train_inference_task_only:
+    if 'preprompt' in args.config and not args.train_inference_task_only:
         import trainers.preprompt_trainer as preprompt_trainer
         preprompt_trainer.train(args)
     else:
@@ -74,5 +62,8 @@ def main(args):
 if __name__ == '__main__':
     
     args = get_args()
+    if args.num_tasks != args.size:
+         print(f"num_tasks({args.num_tasks}) is not equal to the Prompt size({args.size})")
+         args.size = args.num_tasks
     print(args)
     main(args)

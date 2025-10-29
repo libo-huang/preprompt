@@ -2,8 +2,8 @@
 
 
 <p align="center">
-  <img src="./method.png" alt="PrePrompt Framework" width="52%" style="margin-right:40px;"/>
-  <img src="./feature.png" alt="Feature Txtrapolation" width="45%"/>
+  <img src="asset/method.png" alt="PrePrompt Framework" width="52%" style="margin-right:40px;"/>
+  <img src="asset/feature.png" alt="Feature Txtrapolation" width="45%"/>
 </p>
 <p align="center">
   <em>Figure 1: PrePrompt two-stage framework (left) and feature extrapolation mechanism (right).</em>
@@ -15,7 +15,7 @@
 
 ## 🧠 Overview
 <p align="center">
-  <img src="./prompts.png" alt="PrePrompt Overview" width="70%"/>
+  <img src="asset/prompts.png" alt="PrePrompt Overview" width="70%"/>
 </p>
 <p align="center">
   <em>Figure 2: Main difference between conventional prompt-based CIL methods and PrePrompt.</em>
@@ -34,7 +34,8 @@ If you find this work helpful, please consider citing:
   title={PrePrompt: Predictive Prompting for Class Incremental Learning},
   author={Huang, Libo and An, Zhulin and Yang, Chuanguang, and Diao, Boyu et al},
   journal={arXiv preprint arXiv:2505.08586},
-  year={2025}
+  year={2025},
+  date={13 May}
 }
 ```
 

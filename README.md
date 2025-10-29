@@ -2,7 +2,7 @@
 
 
 <p align="center">
-  <img src="asset/method.png" alt="PrePrompt Framework" width="52%" style="margin-right:40px;"/>
+  <img src="asset/method.png" alt="PrePrompt Framework" width="52%" style="margin-right:15px;"/>
   <img src="asset/feature.png" alt="Feature Txtrapolation" width="45%"/>
 </p>
 <p align="center">

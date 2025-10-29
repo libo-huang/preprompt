@@ -60,7 +60,7 @@ If you find this work helpful, please consider citing:
 
 ## 🛠️ Installation
 
-### Step 1. Environment Setup
+### Environment Setup
 ```bash
 # Create and activate conda environment
 conda create -n preprompt python=3.8 -y
@@ -70,7 +70,7 @@ conda activate preprompt
 pip install -r requirements.txt
 ```
 
-### Step 2. Dependencies
+### Dependencies
 ``` text
 timm==0.6.7
 pillow==9.2.0

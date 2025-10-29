@@ -5,14 +5,29 @@
 [![Framework](https://img.shields.io/badge/Framework-PyTorch-red)](https://pytorch.org)
 [![Python 3.8](https://img.shields.io/badge/Python-3.8-blue.svg)](https://www.python.org/)
 
-> 🔥 Official PyTorch implementation of **PrePrompt**, a predictive prompting framework that redefines **class-incremental learning (CIL)** by enabling models to *anticipate* future tasks and retain knowledge more effectively.
+<p align="center">
+  <img src="./method.png" alt="PrePrompt Framework" width="52%" style="margin-right:40px;"/>
+  <img src="./feature.png" alt="Feature Txtrapolation" width="45%"/>
+</p>
+<p align="center">
+  <em>Figure 1: PrePrompt two-stage framework (left) and feature extrapolation mechanism (right).</em>
+</p>
+
+🔥 Official PyTorch implementation of **PrePrompt**, a two-stage predictive prompting framework that enables pre-trained models to first predict task-specific prompts and then perform label prediction, effectively balancing stability and plasticity in class-incremental learning.
 
 ---
 
 ## 🧠 Overview
+<p align="center">
+  <img src="./prompts.png" alt="PrePrompt Overview" width="70%"/>
+</p>
+<p align="center">
+  <em>Figure 2: Main difference between conventional prompt-based CIL methods and PrePrompt.</em>
+</p>
 
-**PrePrompt** introduces a *predictive prompting mechanism* that anticipates task evolution to dynamically select and refine prompts.  
-Unlike conventional prompt-based CIL methods that react to new tasks, PrePrompt proactively aligns prompts with upcoming domain or class distributions — ensuring **robust knowledge retention**, **minimal forgetting**, and **efficient adaptation**.
+**PrePrompt** introduces a *predictive prompting mechanism* that leverages pre-trained models' natural classification ability to predict task-specific prompts.
+
+Unlike conventional prompt-based CIL methods that rely on correlation-based strategies, where an image's classification feature is used as a query to retrieve the most related key prompts and select the corresponding value prompts for training, PrePrompt circumvents the correlation-based limitations that fitting the entire feature space of all tasks with only a few trainable prompts - ensuring **robust knowledge retention**, **minimal forgetting**, and **efficient adaptation**.
 
 > 📄 **Reference Paper:**  
 > [PrePrompt: Predictive Prompting for Class-Incremental Learning (arXiv:2505.08586)](https://arxiv.org/abs/2505.08586)
@@ -37,7 +52,7 @@ If you find this work helpful, please consider citing:
 ## 📊 Benchmark Results
 10 tasks with equal number of classes  of CIFAR-100, ImageNet-R, CUB-200 while 5 tasks of 5-Datasets:
 
-| Dataset | Final Accuracy (%) | Average Incremental Accuracy (%) | Forgetting Rate (%) |
+| Dataset | Final Accuracy (%) ↑ | Average Incremental Accuracy (%) ↑ | Forgetting Rate (%) ↓|
 |---------|-------------------|----------------------------------|---------------------|
 | CIFAR-100 | 93.74 | 95.41 | 1.27 |
 | ImageNet-R | 75.09 | 78.96 | 1.11 |
@@ -103,8 +118,9 @@ Logs and checkpoints will be stored in `./outputs/`.
 
 ## 🙏 Acknowledgments
 This repository builds upon the following excellent open-source projects:
-- [DualPrompt](https://github.com/JH-LEE-KR/dualprompt-pytorch) — continual prompting foundations
+- [DualPrompt](https://github.com/JH-LEE-KR/dualprompt-pytorch) — continual prompting foundations.
 - [HiDe-Prompt](https://github.com/thu-ml/HiDe-Prompt) — hierarchical prompt architecture
+
 We deeply thank the authors of these works for their inspiring contributions.
 
 ## 📜 License

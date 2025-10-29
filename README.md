@@ -1,9 +1,5 @@
-# 🌟 PrePrompt: Predictive Prompting for Class-Incremental Learning
+# 🌟 PrePrompt: Predictive Prompting for Class-Incremental Learning [![Paper](https://img.shields.io/badge/arXiv-Paper-b31b1b)](https://arxiv.org/abs/2505.08586) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Framework](https://img.shields.io/badge/Framework-PyTorch-red)](https://pytorch.org) [![Python 3.8](https://img.shields.io/badge/Python-3.8-blue.svg)](https://www.python.org/)
 
-[![Paper](https://img.shields.io/badge/arXiv-Paper-b31b1b)](https://arxiv.org/abs/2505.08586)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Framework](https://img.shields.io/badge/Framework-PyTorch-red)](https://pytorch.org)
-[![Python 3.8](https://img.shields.io/badge/Python-3.8-blue.svg)](https://www.python.org/)
 
 <p align="center">
   <img src="./method.png" alt="PrePrompt Framework" width="52%" style="margin-right:40px;"/>

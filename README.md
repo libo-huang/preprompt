@@ -1,33 +1,41 @@
-# PrePrompt: Predictive Prompting for Class-Incremental Learning
+# 🌟 PrePrompt: Predictive Prompting for Class-Incremental Learning
 
 [![Paper](https://img.shields.io/badge/arXiv-Paper-b31b1b)](https://arxiv.org/abs/2505.08586)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Framework](https://img.shields.io/badge/Framework-PyTorch-red)](https://pytorch.org)
 [![Python 3.8](https://img.shields.io/badge/Python-3.8-blue.svg)](https://www.python.org/)
 
+> 🔥 Official PyTorch implementation of **PrePrompt**, a predictive prompting framework that redefines **class-incremental learning (CIL)** by enabling models to *anticipate* future tasks and retain knowledge more effectively.
 
-Official PyTorch implementation of **PrePrompt**, a novel predictive prompting framework for class-incremental learning (CIL). PrePrompt introduces a predictive mechanism that anticipates future task requirements, enabling more effective and efficient knowledge retention across sequential learning tasks.
+---
 
-> 📄 **Citation**: If you find our work useful, please consider citing:
-> ```bibtex
-> @article{huang2025preprompt,
->   title={PrePrompt: Predictive Prompting for Class Incremental Learning},
->   author={Huang, Libo and An, Zhulin and Yang, Chuanguang, et al},
->   journal={arXiv preprint arXiv:2505.08586},
->   year={2025}
-> }
-> ```
+## 🧠 Overview
 
-## 🚀 Key Features
+**PrePrompt** introduces a *predictive prompting mechanism* that anticipates task evolution to dynamically select and refine prompts.  
+Unlike conventional prompt-based CIL methods that react to new tasks, PrePrompt proactively aligns prompts with upcoming domain or class distributions — ensuring **robust knowledge retention**, **minimal forgetting**, and **efficient adaptation**.
 
-- **Predictive Prompting**: Anticipates future task distributions to optimize prompt selection
-- **State-of-the-Art Performance**: Achieves superior results on multiple CIL benchmarks
-- **Efficient Adaptation**: Minimal computational overhead with maximal knowledge retention
-- **Easy Integration**: Compatible with existing prompt-based CIL methods
+> 📄 **Reference Paper:**  
+> [PrePrompt: Predictive Prompting for Class-Incremental Learning (arXiv:2505.08586)](https://arxiv.org/abs/2505.08586)
 
-## 📊 Performance Highlights
+If you find this work helpful, please consider citing:
+```bibtex
+@article{huang2025preprompt,
+  title={PrePrompt: Predictive Prompting for Class Incremental Learning},
+  author={Huang, Libo and An, Zhulin and Yang, Chuanguang, and Diao, Boyu et al},
+  journal={arXiv preprint arXiv:2505.08586},
+  year={2025}
+}
+```
 
-PrePrompt achieves state-of-the-art performance across multiple challenging class-incremental learning benchmarks (10 tasks with equal number of classes  of CIFAR-100, ImageNet-R, CUB-200 while 5 tasks of 5-Datasets):
+## 🚀 Key Highlights
+
+- 🧩 **Predictive Prompting**: Learns to anticipate task evolution, improving long-term adaptability.
+- 📈 **State-of-the-Art Results**: Outperforms all prior prompt-based CIL methods across multiple benchmarks.
+- ⚡ **Lightweight Integration**: Minimal computation overhead — plug-and-play for any ViT-based model.
+- 🔁 **Stable & Scalable**: Balances plasticity (learning new tasks) and stability (preserving old knowledge).
+
+## 📊 Benchmark Results
+10 tasks with equal number of classes  of CIFAR-100, ImageNet-R, CUB-200 while 5 tasks of 5-Datasets:
 
 | Dataset | Final Accuracy (%) | Average Incremental Accuracy (%) | Forgetting Rate (%) |
 |---------|-------------------|----------------------------------|---------------------|
@@ -36,11 +44,11 @@ PrePrompt achieves state-of-the-art performance across multiple challenging clas
 | CUB-200 | 88.27 | 88.29 | 1.81 |
 | 5-Datasets | 94.54 | 95.78 | 0.21 |
 
-*Detailed results available in our [paper](https://arxiv.org/abs/2505.08586).*
+*📘 Detailed results and analyses can be found in our [paper](https://arxiv.org/abs/2505.08586).*
 
 ## 🛠️ Installation
 
-### Environment Setup
+### Step 1. Environment Setup
 ```bash
 # Create and activate conda environment
 conda create -n preprompt python=3.8 -y
@@ -50,7 +58,7 @@ conda activate preprompt
 pip install -r requirements.txt
 ```
 
-### Dependencies (requirements.txt)
+### Step 2. Dependencies
 ``` text
 timm==0.6.7
 pillow==9.2.0
@@ -66,16 +74,16 @@ numpy==1.21.6
 
 
 ## 📁 Datasets
-The framework automatically downloads and preprocesses the following benchmark datasets:
-- [CIFAR-100](https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz): 100-class image classification dataset
-- [ImageNet-R](https://people.eecs.berkeley.edu/~hendrycks/imagenet-r.tar): ImageNet variants with artistic renditions
-- [CUB-200](https://data.caltech.edu/records/65de6-vp158/files/CUB_200_2011.tgz) : Fine-grained bird species classification
-- 5-Datasets: Composite benchmark (SVHN, MNIST, CIFAR-10, notMNIST, Fashion-MNIST)
+PrePrompt automatically handles downloading and preprocessing for the following datasets:
+- 🖼️ [CIFAR-100](https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz) — 100-class object recognition
+- 🎨 [ImageNet-R](https://people.eecs.berkeley.edu/~hendrycks/imagenet-r.tar) — artistic renditions of ImageNetrenditions
+- 🐦 [CUB-200](https://data.caltech.edu/records/65de6-vp158/files/CUB_200_2011.tgz) — fine-grained bird classification
+- 🔢 5-Datasets — composite of SVHN, MNIST, CIFAR-10, notMNIST, and Fashion-MNIST
 
-💡 Note: Pre-download datasets to `./datasets/` for faster setup or unstable networks.
+💡 Tip: If your network is unstable, pre-download datasets into `./datasets/`.
 
 ## 🎯 Quick Start
-Execute the corresponding training scripts for each benchmark:
+Run the corresponding training scripts for each benchmark:
 ```bash
 # CIFAR-100 Experiments
 bash training_scripts/train_cifar100_vit.sh
@@ -89,23 +97,27 @@ bash training_scripts/train_cub_vit.sh
 # 5-Datasets Sequential Learning
 bash training_scripts/train_5datasets_vit.sh
 ```
+Logs and checkpoints will be stored in `./outputs/`.
 
 
 
 ## 🙏 Acknowledgments
-This implementation builds upon several excellent open-source projects:
-- [DualPrompt](https://github.com/JH-LEE-KR/dualprompt-pytorch): Foundation for prompt-based continual learning
-- [HiDe-Prompt](https://github.com/thu-ml/HiDe-Prompt): Insights into hierarchical prompt design
-
-We sincerely thank the original authors for sharing their code and inspiring this work.
+This repository builds upon the following excellent open-source projects:
+- [DualPrompt](https://github.com/JH-LEE-KR/dualprompt-pytorch) — continual prompting foundations
+- [HiDe-Prompt](https://github.com/thu-ml/HiDe-Prompt) — hierarchical prompt architecture
+We deeply thank the authors of these works for their inspiring contributions.
 
 ## 📜 License
-This project is released under the MIT License. See LICENSE file for details.
+This project is released under the MIT License. See the [LICENSE](./LICENSE) file for details.
 
-## 📧 Contact
-For questions and discussions, please open an issue or contact the maintainers.
+## 💬 Contact
+For questions, discussions, or collaboration:
+- 🧑‍💻 Maintainer: [Libo Huang](https://github.com/libo-huang)
+- 📫 Email: *via GitHub issues or repository discussions*
 
+---
 
 <div align="center">
-⭐ Don't forget to star this repository if you find it helpful!
+⭐ If you find PrePrompt useful, please star this repo — it helps others discover our work!</br>
+📖 Cite our paper to support open and reproducible continual learning research.
 </div>

@@ -1,4 +1,4 @@
-# 🌟 PrePrompt: Predictive Prompting for Class-Incremental Learning [![Paper](https://img.shields.io/badge/arXiv-Paper-b31b1b)](https://arxiv.org/abs/2505.08586) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Framework](https://img.shields.io/badge/Framework-PyTorch-red)](https://pytorch.org) [![Python 3.8](https://img.shields.io/badge/Python-3.8-blue.svg)](https://www.python.org/) 
+# 🌟 PrePrompt: Predictive Prompting for Class-Incremental Learning [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Framework](https://img.shields.io/badge/Framework-PyTorch-red)](https://pytorch.org) [![Python 3.8](https://img.shields.io/badge/Python-3.8-blue.svg)](https://www.python.org/) 
 
 [中文](README_zh.md) | **English**
 
@@ -26,19 +26,7 @@
 
 Unlike conventional prompt-based CIL methods that rely on correlation-based strategies, where an image's classification feature is used as a query to retrieve the most related key prompts and select the corresponding value prompts for training, PrePrompt circumvents the correlation-based limitations that fitting the entire feature space of all tasks with only a few trainable prompts - ensuring **robust knowledge retention**, **minimal forgetting**, and **efficient adaptation**.
 
-> 📄 **Reference Paper:**  
-> [PrePrompt: Predictive Prompting for Class-Incremental Learning (arXiv:2505.08586)](https://arxiv.org/abs/2505.08586)
 
-If you find this work helpful, please consider citing:
-```bibtex
-@article{huang2025preprompt,
-  title={PrePrompt: Predictive Prompting for Class Incremental Learning},
-  author={Huang, Libo and An, Zhulin and Yang, Chuanguang, and Diao, Boyu et al},
-  journal={arXiv preprint arXiv:2505.08586},
-  year={2025},
-  date={13 May}
-}
-```
 
 ## 🚀 Key Highlights
 
@@ -57,7 +45,7 @@ If you find this work helpful, please consider citing:
 | CUB-200 | 88.27 | 88.29 | 1.81 |
 | 5-Datasets | 94.54 | 95.78 | 0.21 |
 
-*📘 Detailed results and analyses can be found in our [paper](https://arxiv.org/abs/2505.08586).*
+
 
 ## 🛠️ Installation
 
@@ -119,19 +107,7 @@ This repository builds upon the following excellent open-source projects:
 - [DualPrompt](https://github.com/JH-LEE-KR/dualprompt-pytorch) — continual prompting foundations.
 - [HiDe-Prompt](https://github.com/thu-ml/HiDe-Prompt) — hierarchical prompt architecture
 
-We deeply thank the authors of these works for their inspiring contributions.
-
 ## 📜 License
 This project is released under the MIT License. See the [LICENSE](./LICENSE) file for details.
 
-## 💬 Contact
-For questions, discussions, or collaboration:
-- 🧑‍💻 Maintainer: [Libo Huang](https://github.com/libo-huang)
-- 📫 Email: *via GitHub issues or repository discussions*
 
----
-
-<div align="center">
-⭐ If you find PrePrompt useful, please star this repo — it helps others discover our work!</br>
-📖 Cite our paper to support open and reproducible continual learning research.
-</div>

@@ -1,4 +1,4 @@
-# 🌟 PrePrompt: 面向类增量学习的预测式提示学习 [![论文](https://img.shields.io/badge/arXiv-论文-b31b1b)](https://arxiv.org/abs/2505.08586) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![框架](https://img.shields.io/badge/框架-PyTorch-red)](https://pytorch.org) [![Python 3.8](https://img.shields.io/badge/Python-3.8-blue.svg)](https://www.python.org/)
+# 🌟 PrePrompt: 面向类增量学习的预测式提示学习 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![框架](https://img.shields.io/badge/框架-PyTorch-red)](https://pytorch.org) [![Python 3.8](https://img.shields.io/badge/Python-3.8-blue.svg)](https://www.python.org/)
 
 **中文**| [English](README.md)
 
@@ -26,19 +26,6 @@
 
 与传统基于提示的类增量学习方法不同（后者依赖于基于相关性的策略，即用图像的分类特征作为查询来检索最相关的键提示，并选择对应的值提示进行训练），PrePrompt 规避了基于相关性方法的局限性——即试图用少量可训练的提示去拟合所有任务的整个特征空间。这确保了**稳健的知识保留**、**最小的遗忘**和**高效的适应能力**。
 
-> 📄 **参考文献：**
-> [PrePrompt: Predictive Prompting for Class-Incremental Learning (arXiv:2505.08586)](https://arxiv.org/abs/2505.08586)
-
-如果您觉得这项工作对您有帮助，请考虑引用：
-```bibtex
-@article{huang2025preprompt,
-  title={PrePrompt: Predictive Prompting for Class Incremental Learning},
-  author={Huang, Libo and An, Zhulin and Yang, Chuanguang, and Diao, Boyu et al},
-  journal={arXiv preprint arXiv:2505.08586},
-  year={2025},
-  date={13 May}
-}
-```
 
 ## 🚀 核心亮点
 - 🧩 预测式提示：学习预测任务的演变，提升长期适应能力。
@@ -56,7 +43,7 @@
 | CUB-200 | 88.27 | 88.29 | 1.81 |
 | 5-Datasets | 94.54 | 95.78 | 0.21 |
 
-*📘 详细结果与分析请参阅我们的[论文](https://arxiv.org/abs/2505.08586)。*
+
 
 ## 🛠️ 安装
 ### 环境配置
@@ -113,19 +100,5 @@ bash training_scripts/train_5datasets_vit.sh
 - [DualPrompt](https://github.com/JH-LEE-KR/dualprompt-pytorch) — 持续性提示学习的基础
 - [HiDe-Prompt](https://github.com/thu-ml/HiDe-Prompt) — 分层提示架构
 
-我们深深感谢这些工作的作者们所带来的启发与贡献。
-
 ## 📜 许可证
 本项目基于 MIT 许可证发布。详见 [LICENSE](./LICENSE) 文件。
-
-## 💬 联系我们
-如有问题、讨论或合作意向：
-- 🧑‍💻 维护者: [Libo Huang](https://github.com/libo-huang)
-- 📫 邮箱: *可通过 GitHub Issues 或仓库讨论区联系*
-
----
-
-<div align="center"> 
-  ⭐ 如果您觉得 PrePrompt 有用，请给这个仓库点个 Star —— 这将帮助更多人发现我们的工作！</br>
-  📖 引用我们的论文，支持开放、可复现的持续学习研究。
-</div>

@@ -3,8 +3,8 @@
 **中文**| [English](README.md)
 
 <p align="center">
-  <img src="asset/method.png" alt="PrePrompt 框架" width="52%" style="margin-right:15px;"/>
-  <img src="asset/feature.png" alt="特征外推机制" width="45%"/>
+  <img src="docs/static/images/method.png" alt="PrePrompt 框架" width="52%" style="margin-right:15px;"/>
+  <img src="docs/static/images/feature.png" alt="特征外推机制" width="45%"/>
 </p>
 <p align="center">
   <em>图 1: PrePrompt 的两阶段框架（左）与特征外推机制（右）。</em>
@@ -16,7 +16,7 @@
 
 ## 🧠 概述
 <p align="center">
-  <img src="asset/prompts.png" alt="PrePrompt 概述" width="70%"/>
+  <img src="docs/static/images/prompts.png" alt="PrePrompt 概述" width="70%"/>
 </p>
 <p align="center">
   <em>图 2: 传统基于提示的类增量学习方法与 PrePrompt 的主要区别。</em>

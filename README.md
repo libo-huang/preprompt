@@ -3,8 +3,8 @@
 [中文](README_zh.md) | **English**
 
 <p align="center">
-  <img src="asset/method.png" alt="PrePrompt Framework" width="52%" style="margin-right:15px;"/>
-  <img src="asset/feature.png" alt="Feature Txtrapolation" width="45%"/>
+  <img src="docs/static/images/method.png" alt="PrePrompt Framework" width="52%" style="margin-right:15px;"/>
+  <img src="docs/static/images/feature.png" alt="Feature Txtrapolation" width="45%"/>
 </p>
 <p align="center">
   <em>Figure 1: PrePrompt two-stage framework (left) and feature extrapolation mechanism (right).</em>
@@ -16,7 +16,7 @@
 
 ## 🧠 Overview
 <p align="center">
-  <img src="asset/prompts.png" alt="PrePrompt Overview" width="70%"/>
+  <img src="docs/static/images/prompts.png" alt="PrePrompt Overview" width="70%"/>
 </p>
 <p align="center">
   <em>Figure 2: Main difference between conventional prompt-based CIL methods and PrePrompt.</em>

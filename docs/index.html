@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-width=1">
+  <title>PrePrompt: Predictive prompting for class incremental learning</title>
+  
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .author-block { display: inline-block; margin-right: 15px; font-size: 1.15rem; }
+    .author-block a { color: #3273dc; font-weight: 500; text-decoration: none; }
+    .affiliation-block { font-size: 1rem; color: #4a4a4a; margin-top: 10px; }
+    .publication-title { font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; }
+    .conference-name { font-size: 1.25rem; color: #666; font-weight: 600; margin-bottom: 1.5rem; }
+    .abstract-text { text-align: justify; font-size: 1.1rem; line-height: 1.6; }
+    .section-title { font-weight: 600; margin-bottom: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+    .teaser-image { max-width: 100%; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 1rem; }
+    .button-container { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-bottom: 2rem; }
+    .bibtex { background-color: #f5f5f5; padding: 1.5rem; border-radius: 5px; text-align: left; font-family: monospace; overflow-x: auto; }
+  </style>
+</head>
+<body>
+
+<section class="hero is-light">
+  <div class="hero-body">
+    <div class="container is-max-desktop has-text-centered">
+      <h1 class="title is-1 publication-title">PrePrompt: Predictive prompting for class incremental learning</h1>
+      <h2 class="subtitle conference-name">ACM SIGKDD (KDD) 2026</h2>
+      
+      <div class="is-size-5 mb-4">
+        <span class="author-block">Libo Huang<sup>1</sup>,</span>
+        <span class="author-block">Chuanguang Yang<sup>1</sup>,</span>
+        <span class="author-block">Jiarui Zhao<sup>1</sup>,</span>
+        <span class="author-block">Xiangqi Li<sup>1</sup>,</span>
+        <span class="author-block">Yongjun Xu<sup>1</sup>,</span>
+        <span class="author-block">Zhulin An<sup>1</sup></span>
+      </div>
+
+      <div class="is-size-6 mb-5">
+        <span class="affiliation-block"><sup>1</sup>Institute of Computing Technology, Chinese Academy of Sciences (ICT)</span>
+      </div>
+
+      <div class="button-container">
+        <a href="#" class="button is-dark is-rounded">
+          <span class="icon"><i class="fas fa-file-pdf"></i></span>
+          <span>Paper</span>
+        </a>
+        <a href="https://github.com/libo-huang/preprompt" target="_blank" class="button is-dark is-rounded">
+          <span class="icon"><i class="fab fa-github"></i></span>
+          <span>Code</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="has-text-centered mb-6">
+      <img src="./static/images/prompts.png" alt="PrePrompt Teaser" class="teaser-image">
+      <p class="is-italic has-text-grey">Figure 1: Comparison of existing prompt-based CIL methods and our PrePrompt.</p>
+    </div>
+
+    <div class="mb-6">
+      <h2 class="title is-3 section-title">Abstract</h2>
+      <div class="abstract-text">
+        <p>Prompt-based learning has emerged as a promising paradigm for Class Incremental Learning (CIL), enabling pre-trained models to adapt efficiently to open-world scenarios. Existing methods often employ correlation-based strategies, where an image's feature serves as a query to retrieve the most relevant key prompts, with corresponding value prompts for training. However, these approaches face a fundamental challenge: fitting the entire feature space of all tasks with only a few trainable prompts severely limits the pre-trained model's retrieval capability.</p>
+        <br>
+        <p>In this paper, we propose Predictive Prompting (PrePrompt), a novel CIL framework that circumvents correlation-based limitations by leveraging the inherent classification ability of pre-trained models to predict task-specific prompts. Specifically, PrePrompt decomposes CIL into a two-stage prediction process: task-specific prompt prediction followed by a label prediction. While theoretically sound, this framework risks bias toward recent classes due to missing historical information for calibrating older classifiers. To mitigate this, PrePrompt incorporates feature extrapolation technology, dynamically balancing stability and plasticity across classifiers. Extensive experiments on several benchmarks demonstrate PrePrompt's superiority over state-of-the-art prompt-based CIL methods.</p>
+      </div>
+    </div>
+
+    <div class="mb-6">
+      <h2 class="title is-3 section-title">Methodology</h2>
+      <div class="has-text-centered mb-4">
+        <img src="./static/images/method.png" alt="PrePrompt Framework" class="teaser-image">
+        <p class="is-italic has-text-grey">Figure 3: The PrePrompt framework operates through two sequential prediction stages: prompt prediction and label prediction.</p>
+      </div>
+      <p class="abstract-text">
+        PrePrompt eliminates the need for a separate key-value structure and reduces reliance on correlation-based queries. Instead, it leverages the model's initial prediction capability to identify the most appropriate prompt for each task and subsequently predicts the final label using the selected prompt. To achieve an optimal balance between stability and plasticity, PrePrompt incorporates a feature extrapolation strategy across these two prediction stages, maintaining clear separation between corresponding classes and robust task-specific decoupling.
+      </p>
+    </div>
+
+    <div class="mb-6">
+      <h2 class="title is-3 section-title">Experimental Results</h2>
+      <p class="abstract-text mb-4">
+        PrePrompt demonstrates consistent and significant superiority across all benchmarks (CIFAR-100, ImageNet-R, 5-Datasets, and CUB-200), establishing new performance standards in parameter-efficient CIL. For instance, on CIFAR-100, PrePrompt achieves a state-of-the-art final average accuracy of 93.74% while reducing catastrophic forgetting to merely 1.27%.
+      </p>
+      <div class="has-text-centered">
+        <img src="./static/images/results.jpg" alt="Main Results Table" class="teaser-image">
+      </div>
+    </div>
+
+    <div>
+      <h2 class="title is-3 section-title">BibTeX</h2>
+      <pre class="bibtex"><code>@inproceedings{huang2026preprompt,
+  title={PrePrompt: Predictive prompting for class incremental learning},
+  author={Huang, Libo and Yang, Chuanguang and Zhao, Jiarui and Li, Xiangqi and Xu, Yongjun and An, Zhulin},
+  booktitle={Proceedings of the 31st ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD)},
+  year={2026}
+}</code></pre>
+    </div>
+  </div>
+</section>
+
+<footer class="footer mt-6">
+  <div class="content has-text-centered has-text-grey">
+    <p>
+      Website template inspired by <a href="https://github.com/nerfies/nerfies.github.io" target="_blank">Nerfies</a> and <a href="https://3d-rft.github.io/" target="_blank">3D-RFT</a>.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
